@@ -1,0 +1,13 @@
+{
+  "name": "pokemon-battle-server",
+  "version": "1.0.0",
+  "description": "Servidor de batallas en tiempo real para el juego Pokémon",
+  "main": "battleServer.js",
+  "scripts": {
+    "start": "node battleServer.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.4",
+    "uuid": "^9.0.1"
+  }
+} 

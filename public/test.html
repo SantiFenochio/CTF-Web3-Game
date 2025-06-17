@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTF Web3 - Test de Conexión</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            background: rgba(55, 65, 81, 0.8);
+            padding: 40px;
+            border-radius: 15px;
+            border: 1px solid #374151;
+            max-width: 600px;
+        }
+        .success {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #3b82f6;
+            margin-bottom: 20px;
+        }
+        .info {
+            background: #065f46;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .links {
+            margin-top: 30px;
+        }
+        .links a {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        .links a:hover {
+            background: #2563eb;
+        }
+        .details {
+            background: #374151;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success">✅</div>
+        <h1>¡Servidor CTF Web3 Funcionando!</h1>
+        
+        <div class="info">
+            <strong>🎉 Conexión Exitosa</strong><br>
+            El servidor Next.js está ejecutándose correctamente
+        </div>
+        
+        <div class="details">
+            <h3>📋 Información del Servidor:</h3>
+            <ul>
+                <li><strong>Puerto:</strong> <span id="port">3000</span></li>
+                <li><strong>Tiempo:</strong> <span id="time"></span></li>
+                <li><strong>Navegador:</strong> <span id="browser"></span></li>
+                <li><strong>Estado:</strong> <span style="color: #16a34a;">🟢 Activo</span></li>
+            </ul>
+        </div>
+        
+        <div class="links">
+            <a href="/">🎮 Ir al Juego Principal</a>
+            <a href="/test-flag-api.html">🚩 Test API Banderas</a>
+        </div>
+        
+        <div style="margin-top: 20px; font-size: 0.9em; opacity: 0.7;">
+            Si ves esta página, el servidor funciona correctamente ✨
+        </div>
+    </div>
+
+    <script>
+        // Mostrar información dinámica
+        document.getElementById('time').textContent = new Date().toLocaleString();
+        document.getElementById('browser').textContent = navigator.userAgent.includes('Chrome') ? 
+            (navigator.userAgent.includes('Brave') ? 'Brave Browser' : 'Chrome/Chromium') : 
+            'Otro navegador';
+        
+        // Detectar puerto actual
+        const currentPort = window.location.port || '3000';
+        document.getElementById('port').textContent = currentPort;
+    </script>
+</body>
+</html> 

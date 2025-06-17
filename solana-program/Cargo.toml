@@ -1,0 +1,21 @@
+[package]
+name = "pokemon-game"
+version = "0.1.0"
+description = "Pokemon battle game on Solana blockchain"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "pokemon_game"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.29.0"
+anchor-spl = "0.29.0"
+mpl-token-metadata = "1.13.1" 

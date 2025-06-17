@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Flag Generation API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1f2937;
+            color: white;
+        }
+        .container {
+            background: #374151;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        input, select, textarea, button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #4b5563;
+            border-radius: 5px;
+            background: #4b5563;
+            color: white;
+        }
+        button {
+            background: #3b82f6;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #065f46;
+            border-radius: 5px;
+        }
+        .error {
+            background: #7f1d1d;
+        }
+        img {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        .loading {
+            background: #d97706;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚩 Test CTF Flag Generation API</h1>
+    
+    <div class="container">
+        <h2>Generar Bandera AI</h2>
+        
+        <label>Prompt para la bandera:</label>
+        <textarea id="prompt" placeholder="Ej: Un dragón feroz con espadas cruzadas">Un dragón feroz con espadas cruzadas</textarea>
+        
+        <label>Equipo:</label>
+        <select id="team">
+            <option value="red">Equipo Rojo</option>
+            <option value="blue">Equipo Azul</option>
+        </select>
+        
+        <label>Estilo:</label>
+        <select id="style">
+            <option value="realistic">Realista</option>
+            <option value="cartoon">Cartoon</option>
+            <option value="pixel">Pixel Art</option>
+            <option value="abstract">Abstracto</option>
+        </select>
+        
+        <button onclick="generateFlag()">🎨 Generar Bandera</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <div class="container">
+        <h2>📋 Instrucciones</h2>
+        <ul>
+            <li><strong>Prompt:</strong> Describe qué quieres en tu bandera</li>
+            <li><strong>Equipo:</strong> Rojo o Azul (afecta los colores)</li>
+            <li><strong>Estilo:</strong> El estilo artístico de la bandera</li>
+            <li><strong>Nota:</strong> Necesitas una API key de OpenAI en .env.local</li>
+        </ul>
+    </div>
+
+    <script>
+        async function generateFlag() {
+            const prompt = document.getElementById('prompt').value;
+            const team = document.getElementById('team').value;
+            const style = document.getElementById('style').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!prompt.trim()) {
+                resultDiv.innerHTML = '<div class="result error">❌ Por favor ingresa un prompt</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="result loading">🔄 Generando bandera... esto puede tomar 10-30 segundos</div>';
+            
+            try {
+                const response = await fetch('/api/generate-flag', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prompt, team, style })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="result">
+                            <h3>✅ ¡Bandera generada exitosamente!</h3>
+                            <p><strong>Equipo:</strong> 
+                               ${team === 'red' ? 'Rojo 🔴' : 'Azul 🔵'}
+                            </p>
+                            <p><strong>Estilo:</strong> ${style}</p>
+                            <p><strong>Prompt usado:</strong> ${data.prompt}</p>
+                            <img src="${data.imageUrl}" alt="Bandera generada" />
+                            <p><small>Generada: ${data.generatedAt}</small></p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>❌ Error al generar bandera</h3>
+                            <p>${data.error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Error de conexión</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html> 
