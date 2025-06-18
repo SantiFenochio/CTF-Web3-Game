@@ -1,78 +1,181 @@
-'use client'
+'use client';
 
-import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { useState } from 'react';
+import { useGameStore } from '@/store/gameStore';
+import { pokemonData } from '@/data/pokemon';
+import { Pokemon } from '@/types/pokemon';
 
-// Props simplificadas
-interface BoosterPackProps {
-  isOpening: boolean
-  onOpenComplete: (cards: any) => void
-  onClose: () => void
+interface CatchResult {
+  pokemon: Pokemon;
+  isShiny: boolean;
+  isLegendary: boolean;
 }
 
-// Componente simplificado
-export default function BoosterPack({ isOpening, onOpenComplete, onClose }: BoosterPackProps) {
-  const [mounted, setMounted] = useState(false)
-  
-  // Solo renderizar en el cliente
-  useEffect(() => {
-    setMounted(true)
+const BoosterPack = () => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [catchResult, setCatchResult] = useState<CatchResult | null>(null);
+  const { addPokemon, updateStats } = useGameStore();
+
+  const generateRandomPokemon = (): CatchResult => {
+    // Seleccionar un Pokémon aleatorio
+    const randomIndex = Math.floor(Math.random() * pokemonData.length);
+    const basePokemon = pokemonData[randomIndex];
     
-    // Si está abierto, simular la apertura después de 2 segundos
-    if (isOpening) {
-      const timer = setTimeout(() => {
-        const mockCards = [
-          { name: 'Charizard', level: 85, isShiny: true, types: ['Fire', 'Flying'] },
-          { name: 'Blastoise', level: 75, isShiny: false, types: ['Water'] },
-          { name: 'Venusaur', level: 60, isShiny: false, types: ['Grass', 'Poison'] }
-        ];
-        onOpenComplete(mockCards);
-      }, 2000);
+    // Probabilidades
+    const isShiny = Math.random() < 0.05; // 5% chance
+    const isLegendary = Math.random() < 0.10; // 10% chance
+    
+    // Generar stats aleatorios
+    const generateStat = (base: number) => {
+      const variation = Math.floor(Math.random() * 31); // 0-30 IV
+      return base + variation;
+    };
+    
+    const pokemon: Pokemon = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      name: basePokemon.name,
+      type: basePokemon.type,
+      rarity: isLegendary ? 'legendary' : isShiny ? 'rare' : 'common',
+      level: Math.floor(Math.random() * 50) + 1,
+      hp: generateStat(basePokemon.stats.hp),
+      attack: generateStat(basePokemon.stats.attack),
+      defense: generateStat(basePokemon.stats.defense),
+      speed: generateStat(basePokemon.stats.speed),
+      image: basePokemon.image,
+      abilities: basePokemon.abilities,
+      isShiny,
+      isLegendary,
+      owner: 'player'
+    };
+    
+    return { pokemon, isShiny, isLegendary };
+  };
+
+  const handleCatchPokemon = async () => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    setCatchResult(null);
+    
+    try {
+      // Simular delay de transacción
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      return () => clearTimeout(timer);
+      const result = generateRandomPokemon();
+      
+      // Agregar al store
+      addPokemon(result.pokemon);
+      
+      // Actualizar estadísticas
+      updateStats({
+        totalPokemon: 1,
+        shinyCount: result.isShiny ? 1 : 0,
+        legendaryCount: result.isLegendary ? 1 : 0
+      });
+      
+      setCatchResult(result);
+      
+    } catch (error) {
+      console.error('Error catching Pokemon:', error);
+    } finally {
+      setIsProcessing(false);
     }
-  }, [isOpening, onOpenComplete]);
-  
-  // No renderizar nada en el servidor o si no está abriendo
-  if (!mounted || !isOpening) return null;
-  
+  };
+
+  const closeResult = () => {
+    setCatchResult(null);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="bg-gradient-to-br from-blue-900/90 to-purple-900/90 backdrop-blur-md rounded-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between mb-6">
-          <h2 className="text-3xl font-bold text-white">Premium Booster Pack</h2>
-          <button 
-            onClick={onClose}
-            className="text-white/60 hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
+    <div className="space-y-6">
+      {/* Botón de captura */}
+      <div className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 backdrop-blur-sm border border-purple-500/30 rounded-xl p-6">
+        <h3 className="text-xl font-bold text-white mb-4 text-center">
+          🎯 Catch Wild Pokémon
+        </h3>
+        <p className="text-gray-300 text-center mb-6">
+          Click to catch a random Pokémon from the wild!
+        </p>
         
-        <div className="h-96 flex flex-col items-center justify-center">
-          <div className="relative w-64 h-96 mb-8">
-            <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl shadow-xl border-4 border-yellow-300 overflow-hidden">
-              <div className="absolute top-4 left-0 w-full flex justify-center">
-                <div className="bg-yellow-300 w-32 h-8 rounded-full flex items-center justify-center">
-                  <span className="text-yellow-800 font-bold text-sm">PREMIUM</span>
+        <button
+          onClick={handleCatchPokemon}
+          disabled={isProcessing}
+          className={`w-full px-6 py-4 rounded-lg font-semibold text-white transition-all ${
+            isProcessing
+              ? 'bg-gray-600 cursor-not-allowed'
+              : 'bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 transform hover:scale-105'
+          }`}
+        >
+          {isProcessing ? (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Processing transaction...</span>
+            </div>
+          ) : (
+            'Click to catch a random Pokémon!'
+          )}
+        </button>
+      </div>
+
+      {/* Resultado de captura */}
+      {catchResult && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-purple-900 to-blue-900 p-8 rounded-xl border border-purple-500/30 max-w-md w-full mx-4">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-white mb-4">
+                🎉 Pokémon Caught!
+              </h2>
+              
+              <div className="bg-white/10 rounded-lg p-6 mb-6">
+                <div className="text-6xl mb-4">
+                  {catchResult.pokemon.image}
                 </div>
+                
+                <h3 className={`text-2xl font-bold mb-2 ${
+                  catchResult.isLegendary ? 'text-yellow-400' : 
+                  catchResult.isShiny ? 'text-purple-400' : 'text-white'
+                }`}>
+                  {catchResult.pokemon.name}
+                  {catchResult.isShiny && ' ✨'}
+                  {catchResult.isLegendary && ' 👑'}
+                </h3>
+                
+                <p className="text-gray-300 mb-4">
+                  Level {catchResult.pokemon.level} • {catchResult.pokemon.type}
+                </p>
+                
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>HP: {catchResult.pokemon.hp}</div>
+                  <div>Attack: {catchResult.pokemon.attack}</div>
+                  <div>Defense: {catchResult.pokemon.defense}</div>
+                  <div>Speed: {catchResult.pokemon.speed}</div>
+                </div>
+                
+                {catchResult.isShiny && (
+                  <div className="mt-4 text-purple-300 font-semibold">
+                    ✨ SHINY POKÉMON! ✨
+                  </div>
+                )}
+                
+                {catchResult.isLegendary && (
+                  <div className="mt-4 text-yellow-300 font-semibold">
+                    👑 LEGENDARY POKÉMON! 👑
+                  </div>
+                )}
               </div>
               
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-6xl">🎁</div>
-              </div>
-              
-              <div className="absolute bottom-6 left-0 w-full flex justify-center">
-                <div className="bg-yellow-300/50 backdrop-blur-sm w-48 h-12 rounded-lg flex items-center justify-center">
-                  <span className="text-yellow-800 font-bold">Pokémon Cards</span>
-                </div>
-              </div>
+              <button
+                onClick={closeResult}
+                className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 px-6 py-3 rounded-lg font-semibold text-white transition-all"
+              >
+                Add to Collection
+              </button>
             </div>
           </div>
-          
-          <p className="text-xl text-yellow-400 font-bold">Abriendo sobre...</p>
         </div>
-      </div>
+      )}
     </div>
   );
-} 
+};
+
+export default BoosterPack;

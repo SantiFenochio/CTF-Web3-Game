@@ -7,6 +7,8 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { PublicKey } from '@solana/web3.js'
 import { useGameStore } from '@/store/gameStore'
+import { pokemonData, generateRandomPokemon, POKEMON_TYPES, PokemonType } from '@/data/pokemon'
+import { Pokemon } from '@/types/pokemon'
 import WalletConnect from '@/components/ui/WalletConnect'
 import BoosterPack from '@/components/BoosterPack'
 import GameLobby from '@/components/game/GameLobby'
@@ -19,18 +21,58 @@ import BattleSimulator from '../components/BattleSimulator'
 import TeamBuilder from '../components/TeamBuilder'
 import PokemonMarketplace from '../components/PokemonMarketplace'
 // import TrainerProfile from '../components/TrainerProfile'
-import { generateRandomPokemon, POKEMON_TYPES } from '../data/pokemon'
-import { Trainer, Pokemon, Battle } from '../types/pokemon'
+// Remove duplicate imports
+// import { generateRandomPokemon, POKEMON_TYPES } from '../data/pokemon'
+// import { Trainer, Pokemon, Battle } from '../types/pokemon'
+
+// Define Trainer interface
+interface Trainer {
+  publicKey: PublicKey;
+  username: string;
+  level: number;
+  experience: number;
+  battlesWon: number;
+  battlesLost: number;
+  pokemonCaught: number;
+  pokeCoins: number;
+  badges: string[];
+  pokemonTeam: PublicKey[];
+  pokemonBox: PublicKey[];
+  createdAt: number;
+  bump: number;
+}
+
+// Define additional Pokemon interface for the mock program
+interface ProgramPokemon {
+  trainer: PublicKey;
+  speciesId: number;
+  name: string;
+  level: number;
+  experience: number;
+  hp: number;
+  attack: number;
+  defense: number;
+  spAttack: number;
+  spDefense: number;
+  speed: number;
+  types: PokemonType[];
+  moves: number[];
+  nature: number;
+  isShiny: boolean;
+  caughtAt: number;
+  mint: PublicKey;
+  bump: number;
+}
 
 // Mock hook para desarrollo
 const useMockPokemonProgram = () => {
   const [trainer, setTrainer] = useState<Trainer | null>(null)
-  const [userPokemon, setUserPokemon] = useState<Pokemon[]>([])
+  const [userPokemon, setUserPokemon] = useState<ProgramPokemon[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Generate starter Pokémon
-  const generateStarterPokemon = (): Pokemon[] => {
+  const generateStarterPokemon = (): ProgramPokemon[] => {
     // Incluir algunos de los nuevos Pokémon
     const starterSpecies = [1, 4, 7, 25, 39, 6, 9, 94, 151] // Añadidos: Charizard, Blastoise, Gengar, Mew
     
@@ -42,14 +84,14 @@ const useMockPokemonProgram = () => {
         name: basePokemon.name,
         level: Math.floor(Math.random() * 10) + 5, // Level 5-15
         experience: 100,
-        hp: basePokemon.baseStats.hp + 20,
-        attack: basePokemon.baseStats.attack + 10,
-        defense: basePokemon.baseStats.defense + 10,
-        spAttack: basePokemon.baseStats.spAttack + 10,
-        spDefense: basePokemon.baseStats.spDefense + 10,
-        speed: basePokemon.baseStats.speed + 10,
-        types: basePokemon.types,
-        moves: basePokemon.moves,
+        hp: basePokemon.stats.hp + 20,
+        attack: basePokemon.stats.attack + 10,
+        defense: basePokemon.stats.defense + 10,
+        spAttack: 50, // Default values since they don't exist in current BasePokemon
+        spDefense: 50,
+        speed: basePokemon.stats.speed + 10,
+        types: [PokemonType.Normal], // Default type
+        moves: [1, 2, 3, 4], // Default moves
         nature: Math.floor(Math.random() * 25),
         isShiny: Math.random() < 0.05, // 5% shiny chance for starters
         caughtAt: Date.now(),
@@ -90,20 +132,20 @@ const useMockPokemonProgram = () => {
     setLoading(true)
     await new Promise(resolve => setTimeout(resolve, 3000))
     
-    const newPokemon: Pokemon = {
+    const newPokemon: ProgramPokemon = {
       trainer: new PublicKey('11111111111111111111111111111112'),
-      speciesId: basePokemon.id,
+      speciesId: 1, // Default ID
       name: basePokemon.name,
       level: Math.floor(Math.random() * 20) + 5,
       experience: 100,
-      hp: basePokemon.baseStats.hp + 20,
-      attack: basePokemon.baseStats.attack + 10,
-      defense: basePokemon.baseStats.defense + 10,
-      spAttack: basePokemon.baseStats.spAttack + 10,
-      spDefense: basePokemon.baseStats.spDefense + 10,
-      speed: basePokemon.baseStats.speed + 10,
-      types: basePokemon.types,
-      moves: basePokemon.moves,
+      hp: basePokemon.stats.hp + 20,
+      attack: basePokemon.stats.attack + 10,
+      defense: basePokemon.stats.defense + 10,
+      spAttack: 50,
+      spDefense: 50,
+      speed: basePokemon.stats.speed + 10,
+      types: [PokemonType.Normal],
+      moves: [1, 2, 3, 4],
       nature: Math.floor(Math.random() * 25),
       isShiny: Math.random() < 0.02, // 2% shiny chance for wild
       caughtAt: Date.now(),
@@ -114,82 +156,69 @@ const useMockPokemonProgram = () => {
     setUserPokemon(prev => [...prev, newPokemon])
     
     if (trainer) {
-      setTrainer(prev => prev ? {
-        ...prev,
-        pokemonCaught: prev.pokemonCaught + 1,
-        pokeCoins: prev.pokeCoins - 10
-      } : null)
+      setTrainer(prev => {
+        if (prev) {
+          return {
+            ...prev,
+            pokemonCaught: prev.pokemonCaught + 1,
+            pokeCoins: prev.pokeCoins - 10
+          }
+        }
+        return null
+      })
     }
     setLoading(false)
-  }
-
-  // Open booster pack - costs 50 USDC
-  const openBoosterPack = async () => {
-    setLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 4000)) // Longer animation for pack opening
-    
-    // Pack contains 3-5 Pokémon with higher rarity chances
-    const packSize = Math.floor(Math.random() * 3) + 3 // 3-5 Pokémon
-    const packPokemon: Pokemon[] = []
-    
-    for (let i = 0; i < packSize; i++) {
-      const rarityRoll = Math.random()
-      let level: number
-      let isShiny = false
-      
-      // Rarity system for booster packs
-      if (rarityRoll < 0.05) { // 5% Ultra Rare (Legendary)
-        level = Math.floor(Math.random() * 20) + 80 // Level 80-100
-        isShiny = Math.random() < 0.3 // 30% shiny chance for legendaries
-      } else if (rarityRoll < 0.20) { // 15% Rare
-        level = Math.floor(Math.random() * 30) + 50 // Level 50-80
-        isShiny = Math.random() < 0.15 // 15% shiny chance for rares
-      } else { // 80% Common
-        level = Math.floor(Math.random() * 40) + 10 // Level 10-50
-        isShiny = Math.random() < 0.05 // 5% shiny chance for commons
-      }
-      
-      const basePokemon = generateRandomPokemon()
-      const packPokemon_single: Pokemon = {
-        trainer: new PublicKey('11111111111111111111111111111112'),
-        speciesId: basePokemon.id,
-        name: basePokemon.name,
-        level,
-        experience: level * 100,
-        hp: Math.floor(basePokemon.baseStats.hp * (1 + level/100)) + 20,
-        attack: Math.floor(basePokemon.baseStats.attack * (1 + level/100)) + 10,
-        defense: Math.floor(basePokemon.baseStats.defense * (1 + level/100)) + 10,
-        spAttack: Math.floor(basePokemon.baseStats.spAttack * (1 + level/100)) + 10,
-        spDefense: Math.floor(basePokemon.baseStats.spDefense * (1 + level/100)) + 10,
-        speed: Math.floor(basePokemon.baseStats.speed * (1 + level/100)) + 10,
-        types: basePokemon.types,
-        moves: basePokemon.moves,
-        nature: Math.floor(Math.random() * 25),
-        isShiny,
-        caughtAt: Date.now(),
-        mint: PublicKey.unique(),
-        bump: 0
-      }
-      
-      packPokemon.push(packPokemon_single)
-    }
-    
-    setUserPokemon(prev => [...prev, ...packPokemon])
-    
-    if (trainer) {
-      setTrainer(prev => prev ? {
-        ...prev,
-        pokemonCaught: prev.pokemonCaught + packPokemon.length,
-        // Note: In real implementation, this would deduct USDC
-      } : null)
-    }
-    
-    setLoading(false)
-    return packPokemon
   }
 
   const challengeTrainer = async (opponent: any, wager: number) => {
     console.log('Challenge trainer:', opponent, wager)
+  }
+
+  const openBoosterPack = async () => {
+    setLoading(true)
+    await new Promise(resolve => setTimeout(resolve, 2500))
+    
+    // Generate 3 random Pokémon with higher rarity
+    const packPokemon: ProgramPokemon[] = Array(3).fill(null).map(() => {
+      const basePokemon = generateRandomPokemon()
+      return {
+        trainer: new PublicKey('11111111111111111111111111111112'),
+        speciesId: 1, // Default ID
+        name: basePokemon.name,
+        level: Math.floor(Math.random() * 30) + 20, // Level 20-50
+        experience: 500,
+        hp: basePokemon.stats.hp + 30,
+        attack: basePokemon.stats.attack + 20,
+        defense: basePokemon.stats.defense + 20,
+        spAttack: 70,
+        spDefense: 70,
+        speed: basePokemon.stats.speed + 20,
+        types: [PokemonType.Normal],
+        moves: [1, 2, 3, 4],
+        nature: Math.floor(Math.random() * 25),
+        isShiny: Math.random() < 0.10, // 10% shiny chance for booster packs
+        caughtAt: Date.now(),
+        mint: PublicKey.unique(),
+        bump: 0
+      }
+    })
+    
+    setUserPokemon(prev => [...prev, ...packPokemon])
+    
+    if (trainer) {
+      setTrainer(prev => {
+        if (prev) {
+          return {
+            ...prev,
+            pokemonCaught: prev.pokemonCaught + 3
+          }
+        }
+        return null
+      })
+    }
+    
+    setLoading(false)
+    return packPokemon
   }
 
   return {
@@ -204,9 +233,29 @@ const useMockPokemonProgram = () => {
   }
 }
 
+// Converter function to convert ProgramPokemon to Pokemon for UI components
+const convertToPokemon = (programPokemon: ProgramPokemon): Pokemon => {
+  return {
+    id: programPokemon.mint.toString(),
+    name: programPokemon.name,
+    type: programPokemon.types.map(t => POKEMON_TYPES[t].name),
+    rarity: programPokemon.isShiny ? 'rare' : programPokemon.level >= 80 ? 'legendary' : 'common',
+    level: programPokemon.level,
+    hp: programPokemon.hp,
+    attack: programPokemon.attack,
+    defense: programPokemon.defense,
+    speed: programPokemon.speed,
+    image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${programPokemon.speciesId}.png`,
+    abilities: ["Ability 1", "Ability 2"], // Default abilities
+    isShiny: programPokemon.isShiny,
+    isLegendary: programPokemon.level >= 80,
+    owner: 'player'
+  };
+};
+
 export default function HomePage() {
   const { connected, publicKey } = useWallet()
-  const { isInGame } = useGameStore()
+  const { isInGame, pokemon, addPokemon, updateStats } = useGameStore()
   const { 
     trainer, 
     userPokemon,
@@ -222,6 +271,7 @@ export default function HomePage() {
   const [username, setUsername] = useState('')
   const [isRegistering, setIsRegistering] = useState(false)
   const [isOpeningPack, setIsOpeningPack] = useState(false)
+  const [isCatching, setIsCatching] = useState(false)
 
   const tabs = [
     { id: 'home', label: 'Home', icon: FlagIcon },
@@ -233,6 +283,40 @@ export default function HomePage() {
     { id: 'profile', label: 'Profile', icon: UsersIcon },
   ]
 
+  const generateRandomPokemon = (): { pokemon: Pokemon; isShiny: boolean; isLegendary: boolean } => {
+    // Seleccionar un Pokémon aleatorio
+    const randomIndex = Math.floor(Math.random() * pokemonData.length);
+    const basePokemon = pokemonData[randomIndex];
+    
+    // Probabilidades
+    const isShiny = Math.random() < 0.05; // 5% chance
+    const isLegendary = Math.random() < 0.10; // 10% chance
+    
+    // Generar stats aleatorios
+    const generateStat = (base: number) => {
+      const variation = Math.floor(Math.random() * 31); // 0-30 IV
+      return base + variation;
+    };
+    
+    const pokemon: Pokemon = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      name: basePokemon.name,
+      type: basePokemon.type,
+      rarity: isLegendary ? 'legendary' : isShiny ? 'rare' : 'common',
+      level: Math.floor(Math.random() * 50) + 1,
+      hp: generateStat(basePokemon.stats.hp),
+      attack: generateStat(basePokemon.stats.attack),
+      defense: generateStat(basePokemon.stats.defense),
+      speed: generateStat(basePokemon.stats.speed),
+      image: basePokemon.image,
+      abilities: basePokemon.abilities,
+      isShiny,
+      isLegendary,
+      owner: 'player'
+    };
+    
+    return { pokemon, isShiny, isLegendary };
+  };
   const handleRegisterTrainer = async () => {
     if (!username.trim()) return
     
@@ -246,14 +330,74 @@ export default function HomePage() {
   }
 
   const handleCatchPokemon = async () => {
-    try {
-      const randomPokemon = generateRandomPokemon()
-      await catchPokemon(randomPokemon)
-    } catch (error) {
-      console.error('Failed to catch Pokemon:', error)
+    console.log('=== 🐛 DEBUGGING START ===');
+    console.log('1. isCatching:', isCatching);
+    console.log('2. pokemonData existe:', typeof pokemonData !== 'undefined');
+    console.log('3. pokemonData length:', pokemonData?.length || 'undefined');
+    console.log('4. addPokemon function exists:', typeof addPokemon === 'function');
+    console.log('5. updateStats function exists:', typeof updateStats === 'function');
+    
+    if (isCatching) {
+      console.log('❌ Ya está capturando, retornando...');
+      return;
     }
-  }
-
+    
+    setIsCatching(true);
+    console.log('6. ✅ setIsCatching(true) ejecutado');
+    
+    try {
+      console.log('7. 🕐 Iniciando delay de 2 segundos...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('8. ✅ Delay completado');
+      
+      console.log('9. 🎲 Generando Pokémon aleatorio...');
+      const result = generateRandomPokemon();
+      console.log('10. ✅ Pokémon generado:', {
+        name: result.pokemon.name,
+        id: result.pokemon.id,
+        isShiny: result.isShiny,
+        isLegendary: result.isLegendary,
+        rarity: result.pokemon.rarity
+      });
+      
+      console.log('11. 🏪 Llamando addPokemon...');
+      try {
+        addPokemon(result.pokemon);
+        console.log('12. ✅ addPokemon ejecutado sin errores');
+      } catch (addError) {
+        console.error('❌ ERROR en addPokemon:', addError);
+      }
+      
+      console.log('13. 📊 Llamando updateStats...');
+      try {
+        updateStats({
+          totalPokemon: 1,
+          shinyCount: result.isShiny ? 1 : 0,
+          legendaryCount: result.isLegendary ? 1 : 0
+        });
+        console.log('14. ✅ updateStats ejecutado sin errores');
+      } catch (updateError) {
+        console.error('❌ ERROR en updateStats:', updateError);
+      }
+      
+      console.log('15. 🎉 ÉXITO: Pokémon capturado:', result.pokemon.name);
+      
+      // Verificar el estado del store después
+      console.log('16. 🔍 Verificando estado del store...');
+      // Esta línea podría fallar si el store no expone el estado correctamente
+      
+    } catch (error: unknown) {
+      console.error('❌ ERROR GENERAL en handleCatchPokemon:', error);
+      if (error instanceof Error) {
+        console.error('Error stack:', error.stack);
+      }
+    } finally {
+      console.log('17. 🔄 Ejecutando setIsCatching(false)...');
+      setIsCatching(false);
+      console.log('18. ✅ setIsCatching(false) completado');
+      console.log('=== 🐛 DEBUGGING END ===');
+    }
+  };
   if (!connected) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
@@ -492,7 +636,7 @@ export default function HomePage() {
                     Discover and catch new Pokémon to add to your collection.
                   </p>
                   <div className="text-sm text-green-400 font-medium">
-                    Click to catch a random Pokémon
+                    {isCatching ? 'Catching...' : 'Click to catch a random Pokémon'}
                   </div>
                 </motion.div>
 
@@ -600,9 +744,54 @@ export default function HomePage() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleCatchPokemon}
-                    className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-xl"
+                    disabled={isCatching}
+                    className={`font-bold py-3 px-6 rounded-xl text-white ${
+                      isCatching 
+                        ? 'bg-gray-600 cursor-not-allowed' 
+                        : 'bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600'
+                    }`}
                   >
-                    Catch First Pokémon
+                    {isCatching ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Catching...</span>
+                      </div>
+                    ) : (
+                      'Catch First Pokémon'
+                    )}
+                    {/* Sección para ver Pokémon capturados */}
+<div className="mt-8 p-6 bg-gray-800 rounded-xl">
+  <h3 className="text-white text-xl font-bold mb-4">
+    🎒 Pokémon Capturados: {pokemon.length}
+  </h3>
+  
+  {pokemon.length === 0 ? (
+    <p className="text-gray-400 text-center">
+      No has capturado ningún Pokémon todavía. ¡Haz clic en el botón de arriba!
+    </p>
+  ) : (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {pokemon.map((poke) => (
+        <div key={poke.id} className="bg-gray-700 p-4 rounded-lg text-white border-2 border-gray-600">
+          <img 
+            src={poke.image} 
+            alt={poke.name} 
+            className="w-20 h-20 mx-auto mb-2" 
+          />
+          <p className="text-center font-bold text-lg">{poke.name}</p>
+          <p className="text-center text-sm text-gray-300">
+            Level {poke.level} | {poke.rarity}
+            {poke.isShiny && " ✨ SHINY"}
+            {poke.isLegendary && " 👑 LEGENDARY"}
+          </p>
+          <div className="text-xs text-center mt-2 text-gray-400">
+            HP: {poke.hp} | ATK: {poke.attack} | DEF: {poke.defense} | SPD: {poke.speed}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
                   </motion.button>
                 </div>
               ) : (
@@ -789,32 +978,36 @@ export default function HomePage() {
                 </button>
               </div>
               <BattleSimulator 
-                playerTeam={userPokemon.slice(0, 3)}
-                opponentTeam={[
-                  ...Array(3).fill(0).map(() => {
-                    const basePokemon = generateRandomPokemon();
-                    return {
+                playerTeam={userPokemon.slice(0, 3).map(convertToPokemon)}
+                opponentTeam={
+                  Array(3).fill(0).map(() => {
+                    // Use our own BasePokemon instead of the function result
+                    const randomIndex = Math.floor(Math.random() * pokemonData.length);
+                    const basePokemon = pokemonData[randomIndex];
+                    
+                    const programPokemon: ProgramPokemon = {
                       trainer: new PublicKey('11111111111111111111111111111111'),
-                      speciesId: basePokemon.id,
+                      speciesId: 1,
                       name: basePokemon.name,
                       level: Math.floor(Math.random() * 20) + 40,
                       experience: 100,
-                      hp: basePokemon.baseStats.hp + 20,
-                      attack: basePokemon.baseStats.attack + 10,
-                      defense: basePokemon.baseStats.defense + 10,
-                      spAttack: basePokemon.baseStats.spAttack + 10,
-                      spDefense: basePokemon.baseStats.spDefense + 10,
-                      speed: basePokemon.baseStats.speed + 10,
-                      types: basePokemon.types,
-                      moves: basePokemon.moves,
+                      hp: basePokemon.stats.hp + 20,
+                      attack: basePokemon.stats.attack + 10,
+                      defense: basePokemon.stats.defense + 10,
+                      spAttack: 60,
+                      spDefense: 60,
+                      speed: basePokemon.stats.speed + 10,
+                      types: [PokemonType.Normal],
+                      moves: [1, 2, 3, 4],
                       nature: Math.floor(Math.random() * 25),
                       isShiny: Math.random() < 0.02,
                       caughtAt: Date.now(),
                       mint: PublicKey.unique(),
                       bump: 0
                     };
+                    return convertToPokemon(programPokemon);
                   })
-                ]}
+                }
                 onBattleEnd={(winner) => {
                   console.log(`Battle ended! Winner: ${winner}`);
                   setTimeout(() => {
@@ -863,7 +1056,7 @@ export default function HomePage() {
               exit={{ opacity: 0, y: -20 }}
             >
               <TeamBuilder 
-                initialTeam={userPokemon.slice(0, 6)}
+                initialTeam={userPokemon.slice(0, 6).map(convertToPokemon)}
                 onTeamSave={(team) => {
                   console.log('Team saved:', team)
                   alert(`Team saved with ${team.length} Pokémon!`)
@@ -1142,17 +1335,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      {/* Componente de apertura de sobre */}
-      <BoosterPack 
-        isOpening={isOpeningPack}
-        onOpenComplete={async (cards: any) => {
-          // Simplificado para evitar problemas
-          console.log("Pack opened with cards:", cards);
-          setIsOpeningPack(false);
-        }}
-        onClose={() => setIsOpeningPack(false)}
-      />
     </div>
   )
 }
